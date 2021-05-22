@@ -1,28 +1,38 @@
-# coding=utf-8
-from __future__ import absolute_import
+# -*- coding: utf-8 -*-
+from __future__ import absolute_import, unicode_literals
 
-### (Don't forget to remove me)
-# This is a basic skeleton for your plugin's __init__.py. You probably want to adjust the class name of your plugin
-# as well as the plugin mixins it's subclassing from. This is really just a basic skeleton to get you started,
-# defining your plugin as a template plugin, settings and asset plugin. Feel free to add or remove mixins
-# as necessary.
-#
-# Take a look at the documentation on what other plugin mixins are available.
+import io
+import json
+import os
+import uuid
 
 import octoprint.plugin
+import requests
+from octoprint.util import RepeatedTimer
 
-class Octofarm_companionPlugin(octoprint.plugin.SettingsPlugin,
-                               octoprint.plugin.AssetPlugin,
-                               octoprint.plugin.TemplatePlugin):
 
-	##~~ SettingsPlugin mixin
+class OctoFarmCompanionPlugin(
+	octoprint.plugin.StartupPlugin,
+	octoprint.plugin.ShutdownPlugin,
+	octoprint.plugin.BlueprintPlugin,
+	octoprint.plugin.SettingsPlugin,
+	octoprint.plugin.OctoPrintPlugin,
+	octoprint.plugin.AssetPlugin,
+	octoprint.plugin.TemplatePlugin
+):
+	def __init__(self):
+		self._ping_worker = None
+		self._excluded_file = "device.json"
+
+	def on_after_startup(self):
+		self._start_periodic_check()
 
 	def get_settings_defaults(self):
-		return dict(
-			# put your plugin's default settings here
-		)
-
-	##~~ AssetPlugin mixin
+		return {
+			"publicHost": "http://localhost",
+			"publicPort": 4000,
+			"ping": 15
+		}
 
 	def get_assets(self):
 		# Define your plugin's asset files to automatically include in the
@@ -33,7 +43,42 @@ class Octofarm_companionPlugin(octoprint.plugin.SettingsPlugin,
 			less=["less/octofarm_companion.less"]
 		)
 
-	##~~ Softwareupdate hook
+	def initialize(self):
+		self._get_persistence_uuid()
+
+	def _get_persistence_uuid(self):
+		filepath = os.path.join(self.get_plugin_data_folder(), self._excluded_file)
+
+		if os.path.exists(filepath):
+			try:
+				with io.open(filepath, "r", encoding="utf-8") as f:
+					device_uuid_file = f.read()
+					device_uuid_json = json.loads(device_uuid_file)
+					return device_uuid_json["device_uuid"]
+			except json.decoder.JSONDecodeError as e:
+				self._logger.warning("OctoFarm persisted device Id file was of invalid format.")
+				return self._write_new_device_uuid(filepath)
+		else:
+			return self._write_new_device_uuid(filepath)
+
+	def _write_new_device_uuid(self, filepath):
+		persistedDeviceUuid = str(uuid.uuid4())
+		json_data = {'device_uuid': persistedDeviceUuid}
+
+		with io.open(filepath, "w", encoding="utf-8") as f:
+			f.write(json.dumps(json_data))
+
+		self._logger.info("OctoFarm persisted device Id file was stored.")
+
+		return persistedDeviceUuid
+
+	def _get_uuid(self):
+		deviceUuid = self._settings.get(["deviceUuid"])
+		if deviceUuid is None:
+			deviceUuid = str(uuid.uuid4())
+			self._settings.set(["deviceUuid"], deviceUuid)
+			self._settings.save()
+		return deviceUuid
 
 	def get_update_information(self):
 		# Define the configuration for your plugin to use with the Software Update
@@ -41,39 +86,62 @@ class Octofarm_companionPlugin(octoprint.plugin.SettingsPlugin,
 		# for details.
 		return dict(
 			octofarm_companion=dict(
-				displayName="Octofarm_companion Plugin",
+				displayName="Octofarm-Companion Plugin",
 				displayVersion=self._plugin_version,
 
 				# version check: github repository
 				type="github_release",
-				user="davidzwa",
+				user="octofarm",
 				repo="OctoFarm-Companion",
 				current=self._plugin_version,
 
 				# update method: pip
-				pip="https://github.com/davidzwa/OctoFarm-Companion/archive/{target_version}.zip"
+				pip="https://github.com/octofarm/OctoFarm-Companion/archive/{target_version}.zip"
 			)
 		)
 
+	def _start_periodic_check(self):
+		if self._ping_worker is None:
+			ping_interval = self._settings.get_int(["ping"])
+			if ping_interval:
+				self._ping_worker = RepeatedTimer(
+					ping_interval, self._check_octofarm, run_first=True
+				)
+				self._ping_worker.start()
 
-# If you want your plugin to be registered within OctoPrint under a different name than what you defined in setup.py
-# ("OctoPrint-PluginSkeleton"), you may define that here. Same goes for the other metadata derived from setup.py that
-# can be overwritten via __plugin_xyz__ control properties. See the documentation for that.
-__plugin_name__ = "Octofarm_companion Plugin"
+	def _check_octofarm(self):
+		octofarm_host = self._settings.get(["publicHost"])
+		octofarm_port = self._settings.get(["publicPort"])
 
-# Starting with OctoPrint 1.4.0 OctoPrint will also support to run under Python 3 in addition to the deprecated
-# Python 2. New plugins should make sure to run under both versions for now. Uncomment one of the following
-# compatibility flags according to what Python versions your plugin supports!
-#__plugin_pythoncompat__ = ">=2.7,<3" # only python 2
-#__plugin_pythoncompat__ = ">=3,<4" # only python 3
-#__plugin_pythoncompat__ = ">=2.7,<4" # python 2 and 3
+		if octofarm_host is not None and octofarm_port is not None:
+			persisted_device_uuid = self._get_persistence_uuid()
+			deviceUuid = self._get_uuid()
+
+			check_data = {"deviceUuid": deviceUuid,
+						  "persistenceUuid": persisted_device_uuid}
+			self._logger.info("Checking OctoFarm server")
+
+			response = requests.get(f"{octofarm_host}:{octofarm_port}/plugins/check", data=check_data)
+			self._logger.info(response.text)
+
+			self._logger.info("Done checking OctoFarm server")
+
+	def additional_excludes_hook(self, excludes, *args, **kwargs):
+		return [self._excluded_file]
+
+
+__plugin_name__ = "OctoFarm Companion"
+__plugin_version__ = "0.1.14"
+__plugin_description__ = "The \"OctoFarm\" companion plugin for OctoPrint"
+__plugin_pythoncompat__ = ">=3,<4"
+
 
 def __plugin_load__():
 	global __plugin_implementation__
-	__plugin_implementation__ = Octofarm_companionPlugin()
+	__plugin_implementation__ = OctoFarmCompanionPlugin()
 
 	global __plugin_hooks__
 	__plugin_hooks__ = {
-		"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information
+		"octoprint.plugin.softwareupdate.check_config": __plugin_implementation__.get_update_information,
+		"octoprint.plugin.backup.additional_excludes": __plugin_implementation__.additional_excludes_hook
 	}
-
