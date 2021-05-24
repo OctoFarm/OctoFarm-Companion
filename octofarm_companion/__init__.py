@@ -17,6 +17,8 @@ def is_docker():
         os.path.isfile(path) and any('docker' in line for line in open(path))
     )
 
+octofarm_announce_route = 'plugins/announce'
+
 class OctoFarmCompanionPlugin(
     octoprint.plugin.StartupPlugin,
     octoprint.plugin.ShutdownPlugin,
@@ -140,7 +142,7 @@ class OctoFarmCompanionPlugin(
                 }
                 self._logger.info("Checking OctoFarm server")
 
-                response = requests.get(f"{octofarm_host}:{octofarm_port}/plugins/check", json=check_data)
+                response = requests.get(f"{octofarm_host}:{octofarm_port}/{octofarm_announce_route}", json=check_data)
                 self._logger.info(response.text)
 
                 self._logger.debug("Done checking OctoFarm server")
