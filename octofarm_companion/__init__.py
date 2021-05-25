@@ -37,8 +37,9 @@ class OctoFarmCompanionPlugin(
 
     def get_settings_defaults(self):
         return {
-            "octofarmHost": "http://localhost",
+            "octofarmHost": "http://127.0.0.1",
             "octofarmPort": 4000,
+			"portOverride": None,
 			"deviceUuid": None,
             "ping": 15 * 60
         }
@@ -120,11 +121,13 @@ class OctoFarmCompanionPlugin(
                 self._ping_worker.start()
 
     def _check_octofarm(self):
-        octofarm_host = self._settings.get(["octofarmHost"])
-        octofarm_port = self._settings.get(["octofarmPort"])
-
+		octofarm_host = self._settings.get(["octofarmHost"])
+		octofarm_port = self._settings.get(["octofarmPort"])
+		port = self._settings.get(["portOverride"])
         host = self._settings.global_get(["server", "host"])
-        port = self._settings.global_get(["server", "port"])
+
+		if port is None:
+        	port = self._settings.global_get(["server", "port"])
         allow_cross_origin = self._settings.global_get(["api", "allowCrossOrigin"])
 
         if octofarm_host is not None and octofarm_port is not None:
