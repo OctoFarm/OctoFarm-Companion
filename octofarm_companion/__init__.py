@@ -20,7 +20,7 @@ def is_docker():
     )
 
 
-octofarm_announce_route = 'plugins/announce'
+octofarm_announce_route = 'octoprint/announce'
 octofarm_access_token_route = 'oidc/token'
 requested_scopes = 'openid'
 
@@ -64,13 +64,13 @@ class OctoFarmCompanionPlugin(
     # TODO make http://https:// slash robust
     def get_settings_defaults(self):
         return {
-            "octofarm_host": None, # Without adjustment this config value is OFTEN useless
-            "octofarm_port": None, # Without adjustment this config value is OFTEN useless
-            "port_override": None, # Without adjustment this config value is SOMETIMES useless
-            "device_uuid": None, # Auto-generated and unique
-            "oidc_client_id": None, # Without adjustment this config value is ALWAYS useless
-            "oidc_client_secret": None, # Without adjustment this config value is ALWAYS useless
-            "ping": 30
+            "octofarm_host": None,  # Without adjustment this config value is OFTEN useless
+            "octofarm_port": None,  # Without adjustment this config value is OFTEN useless
+            "port_override": None,  # Without adjustment this config value is SOMETIMES useless
+            "device_uuid": None,  # Auto-generated and unique
+            "oidc_client_id": None,  # Without adjustment this config value is ALWAYS useless
+            "oidc_client_secret": None,  # Without adjustment this config value is ALWAYS useless
+            "ping": 120
         }
 
     def get_settings_version(self):
@@ -104,11 +104,11 @@ class OctoFarmCompanionPlugin(
             self._write_new_device_uuid(filepath)
 
     def _write_new_access_token(self, filepath, at_data):
-        self._persisted_data['access_token'] = at_data.access_token
-        self._persisted_data['expires_in'] = at_data.expires_in
-        self._persisted_data['requested_at'] = int(datetime.utcnow().timestamp())
-        self._persisted_data['token_type'] = at_data.token_type
-        self._persisted_data['scope'] = at_data.scope
+        self._persisted_data["access_token"] = at_data["access_token"]
+        self._persisted_data["expires_in"] = at_data["expires_in"]
+        self._persisted_data["requested_at"] = int(datetime.utcnow().timestamp())
+        self._persisted_data["token_type"] = at_data["token_type"]
+        self._persisted_data["scope"] = at_data["scope"]
         self._write_persisted_data(filepath)
         self._logger.info("OctoFarm persisted data file was updated (access_token)")
 
@@ -171,9 +171,6 @@ class OctoFarmCompanionPlugin(
             # Risk of failure when behind proxy (docker, vm, vpn, rev-proxy)
             port = self._settings.global_get(["server", "port"])
 
-        # TODO rectify CORS on the spot?
-        allow_cross_origin = self._settings.global_get(["api", "allowCrossOrigin"])
-
         if octofarm_host is not None and octofarm_port is not None:
             # OIDC client_credentials flow result
             access_token = self._persisted_data.get('access_token', None)
@@ -192,13 +189,15 @@ class OctoFarmCompanionPlugin(
                 success = self._query_access_token(octofarm_host, octofarm_port)
                 if not success:
                     return False
+            else:
+                self._state = "success"
 
-            at = self._persistence_data.access_token
+            at = self._persisted_data["access_token"]
             if at is None:
                 raise Exception(
                     "Conditional error: 'access_token' was not saved properly. Please report a bug to the plugin developers. Aborting")
 
-            self._query_announcement(octofarm_host, octofarm_port, access_token)
+            self._query_announcement(octofarm_host, octofarm_port, at)
 
         else:
             raise Exception("Configuration error: 'oidc_client_id' or 'oidc_client_secret' not set")
@@ -212,28 +211,34 @@ class OctoFarmCompanionPlugin(
             self._logger.error("Configuration error: 'oidc_client_id' or 'oidc_client_secret' not set")
             self._state = "crash"
             return False
+
+        at_data = None
+        url = f"{host}:{port}/{octofarm_access_token_route}"
         try:
             data = {'grant_type': 'client_credentials', 'scope': requested_scopes}
-            response = requests.post(f"{octofarm_host}:{octofarm_port}/{octofarm_access_token_route}", data=check_data,
-                                     verify=False, allow_redirects=False, auth=(client_id, client_secret))
-
-            at_data = json.loads(access_token_response.text)
+            self._logger.info("Calling OctoFarm at URL: " + url)
+            response = requests.post(url, data=data,
+                                     verify=False, allow_redirects=False, auth=(oidc_client_id, oidc_client_secret))
+            self._logger.info(response.text)
+            self._logger.info(response.status_code)
+            at_data = json.loads(response.text)
         except requests.exceptions.ConnectionError:
             self._state = "retry"  # TODO apply this with a backoff scheme
             self._logger.error("ConnectionError: error sending access_token request to OctoFarm")
         except Exception as e:
             self._state = "crash"
-            self._logger.error("ConnectionError: error parsing response when sending access_token request to OctoFarm")
+            self._logger.error(
+                "Generic Exception: error requesting access_token request to OctoFarm. Exception: " + str(e))
 
         if at_data is not None:
-            if at_data.access_token is None:
+            if at_data["access_token"] is None:
                 raise Exception(
                     "Response error: 'access_token' not received. Check your OctoFarm server logs. Aborting")
-            if at_data.expires_in is None:
+            if at_data["expires_in"] is None:
                 raise Exception("Response error: 'expires_in' not received. Check your OctoFarm server logs. Aborting")
 
             # Saves to file and to this plugin instance self._persistence_data accordingly
-            self._write_new_access_token(self._data_path, at_data)
+            self._write_new_access_token(self.get_excluded_persistence_datapath(), at_data)
             self._state = "success"
             return True
         else:
@@ -248,7 +253,7 @@ class OctoFarmCompanionPlugin(
             self._state = "crash"
             raise Exception(
                 "The 'host' was not provided. Preventing announcement query to OctoFarm")
-        if port is None or isnumeric(port):
+        if port is None or type(port) is not int:
             self._state = "crash"
             raise Exception(
                 "The 'port' was not provided or was not a number. Preventing announcement query to OctoFarm")
@@ -259,13 +264,16 @@ class OctoFarmCompanionPlugin(
 
         try:
             # Data folder based
-            persisted_data = self._fetch_persisted_data()
+            self._fetch_persisted_data()
             # Config file based
             device_uuid = self._get_device_uuid()
 
+            # TODO rectify CORS on the spot?
+            allow_cross_origin = self._settings.global_get(["api", "allowCrossOrigin"])
+
             check_data = {
                 "deviceUuid": device_uuid,
-                "persistenceUuid": persisted_data.persistence_uuid,
+                "persistenceUuid": self._persisted_data["persistence_uuid"],
                 "host": host,
                 "port": int(port),
                 "docker": bool(is_docker()),
@@ -273,11 +281,12 @@ class OctoFarmCompanionPlugin(
             }
 
             headers = {'Authorization': 'Bearer ' + access_token}
-            response = requests.get(f"{octofarm_host}:{octofarm_port}/{octofarm_announce_route}", headers=headers,
-                                    json=check_data)
+            url = f"{host}:{port}/{octofarm_announce_route}"
+            response = requests.get(url, headers=headers, json=check_data)
 
             self._state = "sleep"
-            self._logger.debug("Done announcing to OctoFarm server")
+            self._logger.info(f"Done announcing to OctoFarm server ({response.status_code})")
+            # self._logger.info(response.text)
         except requests.exceptions.ConnectionError:
             self._state = "crash"
             self._logger.error("ConnectionError: error sending announcement to OctoFarm")
