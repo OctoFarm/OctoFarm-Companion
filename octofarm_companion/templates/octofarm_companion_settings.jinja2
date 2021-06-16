@@ -11,9 +11,12 @@
                 host (f.e. <code>http://192.168.1.101</code> or <code>https://farm1.octofarm.net/</code>)
             </span>
         </div>
+        <label class="control-label"
+               for="settings-octofarm_companion-octofarm_port">{{ _('OctoFarm port') }}</label>
         <div class="controls">
             <div class="input-append">
                 <input type="text" class="input-mini text-right"
+                       id="settings-octofarm_companion-octofarm_port"
                        data-bind="value: settings.plugins.octofarm_companion.octofarm_port">
             </div>
             <span class="help-inline">
@@ -21,6 +24,37 @@
             </span>
         </div>
     </div>
+
+    <div class="control-group"
+         title="{{ _('OctoFarm connection test)') }}">
+        <small>Always save changes with the Save button on the bottom.</small>
+        <div class="controls">
+            <span class="help-inline">
+                <div class="btn btn-info" data-bind="click: testUrlBackend">Test OctoFarm connection</div>
+            </span>
+            <div class="btn btn-success" data-bind="click: openOctoFarm">Open OctoFarm</div>
+        </div>
+        <div>
+            <div id="connection-loader" class="margin-top" style="display: none">
+                Loading OctoFarm version <i class="fas fa-spinner fa-spin"></i>
+                <div class="progress progress-striped active">
+                    <div class="bar" style="width: 100%;"></div>
+                </div>
+            </div>
+            <div class="alert alert-success margin-top" id="connection-success" style="display: none">
+                <strong>Success</strong>
+                OctoFarm responded with version: <span id="response-version">not provided</span>
+            </div>
+            <div class="alert alert-error margin-top" id="connection-failed" style="display: none">
+                <strong>Failure</strong>
+                Did not get an answer from this URL (host and port setting above). Is OctoFarm being served at this
+                address?
+            </div>
+        </div>
+    </div>
+
+    <hr/>
+    <h4>{{ _("OpenID Connect") }}</h4>
     <div class="control-group"
          title="{{ _('OpenID client id and secret (OpenID Connect with client_credentials flow)') }}">
         <label class="control-label" for="settings-oidc-client-id">{{ _('OpenID client ID') }}</label>
@@ -47,22 +81,66 @@
 
     <div class="control-group"
          title="{{ _('OctoFarm connection testing buttons)') }}">
+        <small>Always save changes with the Save button on the bottom.</small>
+        <em>Announcing manually is currently not yet finished. OctoPrint will do this automatically.</em>
         <div class="controls">
             <span class="help-inline">
-                <div class="btn btn-primary">Test the connection</div>
-                <button class="btn btn-primary" data-bind="click: testUrlBackend">{{ _('Go') }}</button>
-{#                <span class="markread"><small><a href="javascript:void(0)"#}
-{#                                                 data-bind="click: function() { testUrlBackend('asd') }"><i#}
-{#                        class="far fa-eye"></i> {{ _('Test') }}</a></small>#}
-                </span>
-                <div class="btn btn-success" disabled>Open OctoFarm</div>
+                <div class="btn btn-info" data-bind="click: testCredentialsBackend">Test credentials</div>
+            </span>
+            <span class="help-inline">
+                <div class="btn btn-info disabled"
+{#                     data-bind="click: testCredentialsBackend"#}
+                >Announce OctoPrint</div>
             </span>
         </div>
-        <div class="controls">
-            <span class="help-inline">
-                {% trans %}Please thoroughly check your connection settings and client credentials before filing an
-                    issue report.{% endtrans %}
-            </span>
+        <div>
+            <div id="credentials-loader" class="margin-top" style="display: none">
+                Checking OctoFarm OpenID Connect authentication <i class="fas fa-spinner fa-spin"></i>
+                <div class="progress progress-striped active">
+                    <div class="bar" style="width: 100%;"></div>
+                </div>
+            </div>
+            <div class="alert alert-success margin-top" id="credentials-success" style="display: none">
+                <strong>Success</strong>
+                OctoFarm responded with state: <strong id="response-state">not provided</strong>
+                If this is 'success' this means OctoFarm Companion is able to keep OctoFarm updated and happy!
+            </div>
+            <div class="alert alert-danger margin-top" id="credentials-bug" style="display: none">
+                <strong>Bug</strong>
+                An error occurred, unrelated to what you provided. Report please!
+            </div>
+            <div class="alert alert-error margin-top" id="credentials-failed" style="display: none">
+                <strong>Failure</strong>
+                Did not get an answer from this URL (host and port setting above). Is OctoFarm being served at this
+                address?
+            </div>
         </div>
     </div>
+    <hr/>
+    <h4>{{ _("FAQ, roadmap and bugs") }}</h4>
+    <i>This plugin is currently able to:</i>
+    <ol>
+        <li><span class="badge badge-success">new - v0.1.1-rc1</span> Announce OctoPrint to OctoFarm automatically and periodically- you still need to accept the connection and rectify certain settings like ip or API key.
+        </li>
+    </ol>
+
+    <i>This plugin's roadmap is chronologically:</i>
+    <ol>
+        <li><span class="badge badge-warning">v0.1.1-rc2</span> Manually test announcing and present OctoFarm response </li>
+        <li><span class="badge badge-warning">v0.1.1-rc3</span> Expose advanced settings with 'ping' retry timer setting and the 'port_override' to make proxy situations easier </li>
+        <li><span class="badge badge-warning">v0.1.1</span> Provide debug information and downloadable logs to make errors easier to recognize and fix</li>
+        <li><span class="badge badge-secondary">v0.1.2</span> Announcing OctoPrint to OctoFarm including generating an admin API key and rectifying CORS settings</li>
+        <li><span class="badge badge-secondary">v0.1.2</span> Pass system data like CPU temperature to OctoFarm for monitoring</li>
+        <li><span class="badge badge-secondary">v0.1.2+</span> Provide filament data to OctoFarm - making the Filament Manager plugin obsolete</li>
+        <li><span class="badge badge-secondary">v0.2.0</span>Tunneling to OctoFarm, making connections more stable and faster</li>
+    </ol>
+
+    <i>Frequently asked questions:</i>
+    <i class="help-inline">
+        {% trans %}I have a bug! What now? Please visit <a href="https://github.com/OctoFarm/OctoFarm-Companion/issues">https://github.com/OctoFarm/OctoFarm-Companion/issues</a> {% endtrans %}
+    </i>
+    <strong class="help-inline">
+        {% trans %}This plugin is still in alpha stage. This means bugs are likely to occur.{% endtrans %}
+        {% trans %}Please thoroughly check, save and provide OctoPrint logs, your connection and OpenID Connect settings before filing an issue report.{% endtrans %}
+    </strong>
 </form>

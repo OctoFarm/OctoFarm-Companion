@@ -1,19 +1,23 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
+import flask
 import io
 import json
 import os
 import uuid
 from datetime import datetime
+from urllib.parse import urljoin
 
 import octoprint.plugin
 import requests
 from octoprint.util import RepeatedTimer
 
+from octoprint.server import NO_CONTENT
 from octoprint.server.util.flask import (
     no_firstrun_access
 )
+
 
 def is_docker():
     path = '/proc/self/cgroup'
@@ -25,6 +29,7 @@ def is_docker():
 
 octofarm_announce_route = 'octoprint/announce'
 octofarm_access_token_route = 'oidc/token'
+octofarm_version_route = 'serverChecks/version'
 requested_scopes = 'openid'
 
 
@@ -57,6 +62,12 @@ class OctoFarmCompanionPlugin(
         self._excluded_persistence_datapath = os.path.join(self.get_plugin_data_folder(),
                                                            self._excluded_persistence_data)
         return self._excluded_persistence_datapath
+
+    def get_template_vars(self):
+        octofarm_host = self._settings.get(["octofarm_host"])
+        octofarm_port = self._settings.get(["octofarm_port"])
+        base_url = f"{octofarm_host}:{octofarm_port}"
+        return dict(url=base_url)
 
     def get_template_configs(self):
         return [
@@ -166,15 +177,9 @@ class OctoFarmCompanionPlugin(
         octofarm_host = self._settings.get(["octofarm_host"])
         octofarm_port = self._settings.get(["octofarm_port"])
 
-        # Announced data
-        port = self._settings.get(["port_override"])
-        host = self._settings.global_get(["server", "host"])
-        # TODO maybe let OctoFarm decide instead of swapping ourselves?
-        if port is None:
-            # Risk of failure when behind proxy (docker, vm, vpn, rev-proxy)
-            port = self._settings.global_get(["server", "port"])
-
         if octofarm_host is not None and octofarm_port is not None:
+            base_url = f"{octofarm_host}:{octofarm_port}"
+
             # OIDC client_credentials flow result
             access_token = self._persisted_data.get('access_token', None)
             requested_at = self._persisted_data.get('requested_at', None)
@@ -189,7 +194,9 @@ class OctoFarmCompanionPlugin(
             token_invalid = not access_token or is_expired
 
             if token_invalid:
-                success = self._query_access_token(octofarm_host, octofarm_port)
+                oidc_client_id = self._settings.get(["oidc_client_id"])
+                oidc_client_secret = self._settings.get(["oidc_client_secret"])
+                success = self._query_access_token(base_url, oidc_client_id, oidc_client_secret)
                 if not success:
                     return False
             else:
@@ -200,26 +207,23 @@ class OctoFarmCompanionPlugin(
                 raise Exception(
                     "Conditional error: 'access_token' was not saved properly. Please report a bug to the plugin developers. Aborting")
 
-            self._query_announcement(octofarm_host, octofarm_port, at)
+            self._query_announcement(base_url, at)
 
         else:
             raise Exception("Configuration error: 'oidc_client_id' or 'oidc_client_secret' not set")
             self._logger.error("Error connecting to OctoFarm")
 
-    def _query_access_token(self, host, port):
-        oidc_client_id = self._settings.get(["oidc_client_id"])
-        oidc_client_secret = self._settings.get(["oidc_client_secret"])
-
+    def _query_access_token(self, base_url, oidc_client_id, oidc_client_secret):
         if not oidc_client_id or not oidc_client_secret:
             self._logger.error("Configuration error: 'oidc_client_id' or 'oidc_client_secret' not set")
             self._state = "crash"
             return False
 
         at_data = None
-        url = f"{host}:{port}/{octofarm_access_token_route}"
         try:
             data = {'grant_type': 'client_credentials', 'scope': requested_scopes}
-            self._logger.info("Calling OctoFarm at URL: " + url)
+            self._logger.info("Calling OctoFarm at URL: " + base_url)
+            url = urljoin(base_url, octofarm_access_token_route)
             response = requests.post(url, data=data,
                                      verify=False, allow_redirects=False, auth=(oidc_client_id, oidc_client_secret))
             self._logger.info(response.text)
@@ -248,22 +252,27 @@ class OctoFarmCompanionPlugin(
             self._state = "crash"
             self._logger.error("Response error: access_token data response was empty. Aborting")
 
-    def _query_announcement(self, host, port, access_token):
+    def _query_announcement(self, base_url, access_token):
         if self._state is not "success" and self._state is not "sleep":
             self._logger.error("State error: tried to announce when state was not 'success'")
 
-        if host is None:
+        if base_url is None:
             self._state = "crash"
             raise Exception(
-                "The 'host' was not provided. Preventing announcement query to OctoFarm")
-        if port is None or type(port) is not int:
-            self._state = "crash"
-            raise Exception(
-                "The 'port' was not provided or was not a number. Preventing announcement query to OctoFarm")
+                "The 'base_url' was not provided. Preventing announcement query to OctoFarm")
+
         if len(access_token) < 43:
             self._state = "crash"
             raise Exception(
                 "The 'access_token' did not meet the expected length of 43 characters. Preventing announcement query to OctoFarm")
+
+        # Announced data
+        octoprint_port = self._settings.get(["port_override"])
+        octoprint_host = self._settings.global_get(["server", "host"])
+        # TODO maybe let OctoFarm decide instead of swapping ourselves?
+        if octoprint_port is None:
+            # Risk of failure when behind proxy (docker, vm, vpn, rev-proxy)
+            octoprint_port = self._settings.global_get(["server", "port"])
 
         try:
             # Data folder based
@@ -277,19 +286,19 @@ class OctoFarmCompanionPlugin(
             check_data = {
                 "deviceUuid": device_uuid,
                 "persistenceUuid": self._persisted_data["persistence_uuid"],
-                "host": host,
-                "port": int(port),
+                "host": octoprint_host,
+                "port": int(octoprint_port),
                 "docker": bool(is_docker()),
                 "allowCrossOrigin": bool(allow_cross_origin)
             }
 
             headers = {'Authorization': 'Bearer ' + access_token}
-            url = f"{host}:{port}/{octofarm_announce_route}"
+            url = urljoin(base_url, octofarm_announce_route)
             response = requests.post(url, headers=headers, json=check_data)
 
             self._state = "sleep"
             self._logger.info(f"Done announcing to OctoFarm server ({response.status_code})")
-            # self._logger.info(response.text)
+            self._logger.info(response.text)
         except requests.exceptions.ConnectionError:
             self._state = "crash"
             self._logger.error("ConnectionError: error sending announcement to OctoFarm")
@@ -297,13 +306,46 @@ class OctoFarmCompanionPlugin(
     def additional_excludes_hook(self, excludes, *args, **kwargs):
         return [self._excluded_persistence_data]
 
-    @octoprint.plugin.BlueprintPlugin.route("/test/<url>", methods=["POST"])
+    @octoprint.plugin.BlueprintPlugin.route("/test_octofarm_connection", methods=["POST"])
     @no_firstrun_access
-    def channel_command(self, url):
+    def test_octofarm_connection(self):
+        input = json.loads(flask.request.data)
+        if not "url" in input:
+            flask.abort(400, description="Expected 'url' parameter")
 
-        self._logger.info("Testing URL " + url)
+        proposed_url = input["url"]
+        self._logger.info("Testing OctoFarm URL " + proposed_url)
 
-        return NO_CONTENT
+        url = urljoin(proposed_url, octofarm_version_route)
+        response = requests.get(url)
+        version_data = json.loads(response.text)
+
+        self._logger.info("Version response from OctoFarm " + version_data["version"])
+
+        return version_data
+
+    @octoprint.plugin.BlueprintPlugin.route("/test_octofarm_openid", methods=["POST"])
+    @no_firstrun_access
+    def test_octofarm_openid(self):
+        input = json.loads(flask.request.data)
+        if not "url" in input:
+            flask.abort(400, description="Expected 'url' parameter")
+        if not "client_id" in input:
+            flask.abort(400, description="Expected 'client_id' parameter")
+        if not "client_secret" in input:
+            flask.abort(400, description="Expected 'client_secret' parameter")
+
+        proposed_url = input["url"]
+        oidc_client_id = input["client_id"]
+        oidc_client_secret = input["client_secret"]
+        self._query_access_token(proposed_url, oidc_client_id, oidc_client_secret)
+
+        self._logger.info("Queried access_token from Octofarm")
+
+        return {
+            "state": self._state,
+        }
+
 
 __plugin_name__ = "OctoFarm Companion"
 __plugin_version__ = "0.1.14"
