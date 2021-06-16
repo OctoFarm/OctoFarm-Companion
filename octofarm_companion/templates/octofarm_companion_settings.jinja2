@@ -50,6 +50,11 @@
         <div class="controls">
             <span class="help-inline">
                 <div class="btn btn-primary">Test the connection</div>
+                <button class="btn btn-primary" data-bind="click: testUrlBackend">{{ _('Go') }}</button>
+{#                <span class="markread"><small><a href="javascript:void(0)"#}
+{#                                                 data-bind="click: function() { testUrlBackend('asd') }"><i#}
+{#                        class="far fa-eye"></i> {{ _('Test') }}</a></small>#}
+                </span>
                 <div class="btn btn-success" disabled>Open OctoFarm</div>
             </span>
         </div>

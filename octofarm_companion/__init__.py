@@ -11,6 +11,9 @@ import octoprint.plugin
 import requests
 from octoprint.util import RepeatedTimer
 
+from octoprint.server.util.flask import (
+    no_firstrun_access
+)
 
 def is_docker():
     path = '/proc/self/cgroup'
@@ -294,6 +297,13 @@ class OctoFarmCompanionPlugin(
     def additional_excludes_hook(self, excludes, *args, **kwargs):
         return [self._excluded_persistence_data]
 
+    @octoprint.plugin.BlueprintPlugin.route("/test/<url>", methods=["POST"])
+    @no_firstrun_access
+    def channel_command(self, url):
+
+        self._logger.info("Testing URL " + url)
+
+        return NO_CONTENT
 
 __plugin_name__ = "OctoFarm Companion"
 __plugin_version__ = "0.1.14"
