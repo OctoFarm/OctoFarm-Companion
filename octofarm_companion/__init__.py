@@ -67,7 +67,8 @@ class OctoFarmCompanionPlugin(
         octofarm_host = self._settings.get(["octofarm_host"])
         octofarm_port = self._settings.get(["octofarm_port"])
         base_url = f"{octofarm_host}:{octofarm_port}"
-        return dict(url=base_url)
+        favicon = f"{base_url}/favicon.ico"
+        return dict(url=base_url, of_favicon=favicon)
 
     def get_template_configs(self):
         return [
