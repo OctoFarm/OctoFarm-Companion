@@ -282,7 +282,7 @@ class OctoFarmCompanionPlugin(
 
             headers = {'Authorization': 'Bearer ' + access_token}
             url = f"{host}:{port}/{octofarm_announce_route}"
-            response = requests.get(url, headers=headers, json=check_data)
+            response = requests.post(url, headers=headers, json=check_data)
 
             self._state = "sleep"
             self._logger.info(f"Done announcing to OctoFarm server ({response.status_code})")
