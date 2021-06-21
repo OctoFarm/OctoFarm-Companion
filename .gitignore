@@ -1,10 +1,17 @@
+.DS_Store
+.idea
+*.iml
+
+# C extensions
+*.so
+*.pyc
+*.swp
+*.zip
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
-*.so
 
 # Distribution / packaging
 .Python
@@ -24,7 +31,7 @@ pip-wheel-metadata/
 share/python-wheels/
 *.egg-info/
 .installed.cfg
-*.egg
+*.egg*
 MANIFEST
 
 # PyInstaller

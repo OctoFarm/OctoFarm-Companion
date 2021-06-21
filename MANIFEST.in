@@ -1,0 +1,4 @@
+include README.md
+recursive-include octofarm_companion/templates *
+recursive-include octofarm_companion/translations *
+recursive-include octofarm_companion/static *
