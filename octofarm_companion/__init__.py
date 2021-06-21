@@ -349,7 +349,7 @@ class OctoFarmCompanionPlugin(
 
 
 __plugin_name__ = "OctoFarm Companion"
-__plugin_version__ = "0.1.14"
+__plugin_version__ = "0.1.0-rc1"
 __plugin_description__ = "The OctoFarm companion plugin for OctoPrint"
 __plugin_pythoncompat__ = ">=3,<4"
 
