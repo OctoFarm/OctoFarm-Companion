@@ -50,7 +50,6 @@ class OctoFarmCompanionPlugin(
         self._state = "boot"
 
     def on_after_startup(self):
-        defaults = self.get_settings_defaults()
         if self._settings.get(["octofarm_host"]) is None:
             self._settings.set(["octofarm_host"], "http://127.0.0.1")
         if self._settings.get(["octofarm_port"]) is None:
@@ -311,7 +310,7 @@ class OctoFarmCompanionPlugin(
     @no_firstrun_access
     def test_octofarm_connection(self):
         input = json.loads(flask.request.data)
-        if not "url" in input:
+        if "url" not in input:
             flask.abort(400, description="Expected 'url' parameter")
 
         proposed_url = input["url"]
