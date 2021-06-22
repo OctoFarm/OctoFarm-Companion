@@ -16,6 +16,8 @@ from octoprint.server.util.flask import (
 )
 from octoprint.util import RepeatedTimer
 
+from octofarm_companion.constants import Errors
+
 
 def is_docker():
     path = '/proc/self/cgroup'
@@ -256,13 +258,11 @@ class OctoFarmCompanionPlugin(
 
         if base_url is None:
             self._state = "crash"
-            raise Exception(
-                "The 'base_url' was not provided. Preventing announcement query to OctoFarm")
+            raise Exception(Errors.base_url_not_provided)
 
         if len(access_token) < 43:
             self._state = "crash"
-            raise Exception(
-                "The 'access_token' did not meet the expected length of 43 characters. Preventing announcement query to OctoFarm")
+            raise Exception(Errors.access_token_too_short)
 
         # Announced data
         octoprint_port = self._settings.get(["port_override"])
