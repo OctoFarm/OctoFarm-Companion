@@ -1,7 +1,8 @@
+# flake8:noqa
 # coding=utf-8
 
-########################################################################################################################
-### Do not forget to adjust the following variables to your own plugin.
+#######################################################################
+# Do not forget to adjust the following variables to your own plugin.
 
 # The plugin's identifier, has to be unique
 plugin_identifier = "octofarm_companion"
@@ -9,7 +10,8 @@ plugin_identifier = "octofarm_companion"
 # The plugin's python package, should be "octoprint_<plugin identifier>", has to be unique
 plugin_package = "octofarm_companion"
 
-# The plugin's human readable name. Can be overwritten within OctoPrint's internal data via __plugin_name__ in the
+# The plugin's human readable name.
+# Can be overwritten within OctoPrint's internal data via __plugin_name__ in the
 # plugin module
 plugin_name = "OctoFarm-Companion"
 
@@ -49,7 +51,7 @@ plugin_additional_data = []
 plugin_additional_packages = []
 
 # Any python packages within <plugin_package>.* you do NOT want to install with your plugin
-plugin_ignored_packages = []
+plugin_ignored_packages = ["tests"]
 
 # Additional parameters for the call to setuptools.setup. If your plugin wants to register additional entry points,
 # define dependency links or other things like that, this is the place to go. Will be merged recursively with the
