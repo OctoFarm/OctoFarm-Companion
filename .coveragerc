@@ -1,3 +1,2 @@
 [run]
 omit = tests/*
-show_missing = True
