@@ -10,15 +10,16 @@ from octofarm_companion.constants import Errors, Config, State
 
 
 class TestPluginAnnouncing(unittest.TestCase):
-    def setUp(self):
-        self.settings = mock.MagicMock()  # Replace or refine with set/get
-        self.logger = mock.MagicMock()
+    @classmethod
+    def setUp(cls):
+        cls.settings = mock.MagicMock()  # Replace or refine with set/get
+        cls.logger = mock.MagicMock()
 
-        self.plugin = OctoFarmCompanionPlugin()
-        self.plugin._settings = self.settings
-        self.plugin._logger = self.logger
+        cls.plugin = OctoFarmCompanionPlugin()
+        cls.plugin._settings = cls.settings
+        cls.plugin._logger = cls.logger
         # Nice way to test persisted data
-        self.plugin._data_folder = "test_data"
+        cls.plugin._data_folder = "test_data"
 
     def assert_state(self, state):
         assert self.plugin._state is state
