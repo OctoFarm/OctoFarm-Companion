@@ -134,3 +134,5 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+tests/test_data/backup_excluded_data.json

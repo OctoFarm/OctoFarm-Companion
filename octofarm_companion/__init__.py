@@ -16,7 +16,7 @@ from octoprint.server.util.flask import (
 )
 from octoprint.util import RepeatedTimer
 
-from octofarm_companion.constants import Errors
+from octofarm_companion.constants import Errors, State, Config, Keys
 
 
 def is_docker():
@@ -45,9 +45,8 @@ class OctoFarmCompanionPlugin(
         self._ping_worker = None
         # device UUID and OIDC opaque access_token + metadata
         self._persisted_data = dict()
-        self._excluded_persistence_data = "backup_excluded_data.json"
         self._excluded_persistence_datapath = None
-        self._state = "boot"
+        self._state = State.BOOT
 
     def on_after_startup(self):
         if self._settings.get(["octofarm_host"]) is None:
@@ -59,7 +58,7 @@ class OctoFarmCompanionPlugin(
 
     def get_excluded_persistence_datapath(self):
         self._excluded_persistence_datapath = os.path.join(self.get_plugin_data_folder(),
-                                                           self._excluded_persistence_data)
+                                                           Config.persisted_data_file)
         return self._excluded_persistence_datapath
 
     def get_template_vars(self):
@@ -128,7 +127,7 @@ class OctoFarmCompanionPlugin(
 
     def _write_new_device_uuid(self, filepath):
         persistence_uuid = str(uuid.uuid4())
-        self._persisted_data['persistence_uuid'] = persistence_uuid
+        self._persisted_data[Keys.persistence_uuid_key] = persistence_uuid
         self._write_persisted_data(filepath)
         self._logger.info("OctoFarm persisted data file was updated (device_uuid).")
 
@@ -137,10 +136,10 @@ class OctoFarmCompanionPlugin(
             f.write(json.dumps(self._persisted_data))
 
     def _get_device_uuid(self):
-        device_uuid = self._settings.get(["device_uuid"])
+        device_uuid = self._settings.get([Keys.device_uuid_key])
         if device_uuid is None:
             device_uuid = str(uuid.uuid4())
-            self._settings.set(["device_uuid"], device_uuid)
+            self._settings.set([Keys.device_uuid_key], device_uuid)
             self._settings.save()
         return device_uuid
 
@@ -200,12 +199,11 @@ class OctoFarmCompanionPlugin(
                 if not success:
                     return False
             else:
-                self._state = "success"
+                self._state = State.SUCCESS
 
             at = self._persisted_data["access_token"]
             if at is None:
-                raise Exception(
-                    "Conditional error: 'access_token' was not saved properly. Please report a bug to the plugin developers. Aborting")
+                raise Exception(Errors.access_token_not_saved)
 
             self._query_announcement(base_url, at)
 
@@ -216,7 +214,7 @@ class OctoFarmCompanionPlugin(
     def _query_access_token(self, base_url, oidc_client_id, oidc_client_secret):
         if not oidc_client_id or not oidc_client_secret:
             self._logger.error("Configuration error: 'oidc_client_id' or 'oidc_client_secret' not set")
-            self._state = "crash"
+            self._state = State.CRASHED
             return False
 
         at_data = None
@@ -230,10 +228,10 @@ class OctoFarmCompanionPlugin(
             self._logger.info(response.status_code)
             at_data = json.loads(response.text)
         except requests.exceptions.ConnectionError:
-            self._state = "retry"  # TODO apply this with a backoff scheme
+            self._state = State.RETRY  # TODO apply this with a backoff scheme
             self._logger.error("ConnectionError: error sending access_token request to OctoFarm")
         except Exception as e:
-            self._state = "crash"
+            self._state = State.CRASHED
             self._logger.error(
                 "Generic Exception: error requesting access_token request to OctoFarm. Exception: " + str(e))
 
@@ -246,22 +244,22 @@ class OctoFarmCompanionPlugin(
 
             # Saves to file and to this plugin instance self._persistence_data accordingly
             self._write_new_access_token(self.get_excluded_persistence_datapath(), at_data)
-            self._state = "success"
+            self._state = State.SUCCESS
             return True
         else:
-            self._state = "crash"
+            self._state = State.CRASHED
             self._logger.error("Response error: access_token data response was empty. Aborting")
 
     def _query_announcement(self, base_url, access_token):
-        if self._state != "success" and self._state != "sleep":
+        if self._state != State.SUCCESS and self._state != State.SLEEP:
             self._logger.error("State error: tried to announce when state was not 'success'")
 
         if base_url is None:
-            self._state = "crash"
+            self._state = State.CRASHED
             raise Exception(Errors.base_url_not_provided)
 
         if len(access_token) < 43:
-            self._state = "crash"
+            self._state = State.CRASHED
             raise Exception(Errors.access_token_too_short)
 
         # Announced data
@@ -301,8 +299,9 @@ class OctoFarmCompanionPlugin(
             self._state = "crash"
             self._logger.error("ConnectionError: error sending announcement to OctoFarm")
 
-    def additional_excludes_hook(self, excludes, *args, **kwargs):
-        return [self._excluded_persistence_data]
+    @staticmethod
+    def additional_excludes_hook(excludes, *args, **kwargs):
+        return [Config.persisted_data_file]
 
     @octoprint.plugin.BlueprintPlugin.route("/test_octofarm_connection", methods=["POST"])
     @no_firstrun_access
