@@ -1,7 +1,6 @@
 # -*- coding: utf-8 -*-
 from __future__ import absolute_import, unicode_literals
 
-import flask
 import io
 import json
 import os
@@ -9,14 +8,13 @@ import uuid
 from datetime import datetime
 from urllib.parse import urljoin
 
+import flask
 import octoprint.plugin
 import requests
-from octoprint.util import RepeatedTimer
-
-from octoprint.server import NO_CONTENT
 from octoprint.server.util.flask import (
     no_firstrun_access
 )
+from octoprint.util import RepeatedTimer
 
 
 def is_docker():
@@ -253,7 +251,7 @@ class OctoFarmCompanionPlugin(
             self._logger.error("Response error: access_token data response was empty. Aborting")
 
     def _query_announcement(self, base_url, access_token):
-        if self._state is not "success" and self._state is not "sleep":
+        if self._state != "success" and self._state != "sleep":
             self._logger.error("State error: tried to announce when state was not 'success'")
 
         if base_url is None:
