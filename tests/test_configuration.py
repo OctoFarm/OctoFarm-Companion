@@ -1,12 +1,8 @@
 import unittest
 import unittest.mock as mock
-from random import choice
-from string import ascii_uppercase
-
-import pytest
 
 from octofarm_companion import OctoFarmCompanionPlugin
-from octofarm_companion.constants import Errors, Config, State, Keys
+from octofarm_companion.constants import Config, Keys
 
 
 class TestPluginConfiguration(unittest.TestCase):
@@ -34,12 +30,8 @@ class TestPluginConfiguration(unittest.TestCase):
         assert data_path == "test_data\\" + Config.persisted_data_file
         assert len(persistence_uuid) > 20
 
-
     def test_on_settings_cleanup(self):
         """Tests that after cleanup only minimal config is left in storage."""
-
-        ### setup
-
         # settings defaults
         defaults = {
             "foo": {"a": 1, "b": 2, "l1": ["some", "list"], "l2": ["another", "list"]},
@@ -61,11 +53,11 @@ class TestPluginConfiguration(unittest.TestCase):
         }
         self.settings.get_all_data.return_value = in_config
 
-        ### execute
+        # execute
 
         self.plugin.on_settings_cleanup()
 
-        ### assert
+        # assert
 
         # minimal config (current without redundant value) should have been set
         expected = {

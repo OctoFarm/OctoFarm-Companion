@@ -49,19 +49,20 @@ class TestPluginAnnouncing(unittest.TestCase):
     # This method will be used by the mock to replace requests.get
     def mocked_requests_get(*args, **kwargs):
         class MockResponse:
-            def __init__(self, json_data, status_code):
+            def __init__(self, json_data, status_code, text):
                 self.json_data = json_data
                 self.status_code = status_code
+                self.text = text
 
             def json(self):
                 return self.json_data
 
         if args[0] == 'http://someurl.com/test.json':
-            return MockResponse({"key1": "value1"}, 200)
+            return MockResponse({"key1": "value1"}, 200, "{}")
         elif args[0] == 'http://someotherurl.com/anothertest.json':
-            return MockResponse({"key2": "value2"}, 200)
+            return MockResponse({"key2": "value2"}, 200, "{}")
 
-        return MockResponse(None, 404)
+        return MockResponse(None, 404, "{}")
 
     @mock.patch('requests.post', side_effect=mocked_requests_get)
     def test_announcement_with_proper_data(self, mock_post):
@@ -71,12 +72,11 @@ class TestPluginAnnouncing(unittest.TestCase):
         url = "testwrong_url"
         self.assert_state(State.BOOT)
 
-        with pytest.raises(Exception) as e:
-            # TODO wrong url is not prevented
-            self.plugin._query_announcement(url, fake_token)
+        # TODO wrong url is not prevented
+        self.plugin._query_announcement(url, fake_token)
 
-        assert e.value.args[0] == Errors.base_url_not_provided
-        self.assert_state(State.CRASHED)
+        # assert e.value.args[0] == Errors.base_url_not_provided
+        self.assert_state(State.SLEEP)
 
     # TODO _check_octofarm
     # TODO _query_access_token
