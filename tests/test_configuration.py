@@ -3,7 +3,8 @@ import unittest.mock as mock
 from datetime import datetime
 
 from octofarm_companion import OctoFarmCompanionPlugin, __plugin_version__
-from octofarm_companion.constants import Config, Keys
+from octofarm_companion.constants import Config, Keys, Errors
+from tests.utils import mock_settings_get, mock_settings_get_int
 
 
 class TestPluginConfiguration(unittest.TestCase):
@@ -11,6 +12,8 @@ class TestPluginConfiguration(unittest.TestCase):
     @mock.patch('octofarm_companion.RepeatedTimer')
     def setUp(cls, mock_repeated_timer):
         cls.settings = mock.MagicMock()  # Replace or refine with set/get
+        cls.settings.get = mock_settings_get
+        cls.settings.get_int = mock_settings_get_int
         cls.logger = mock.MagicMock()
 
         cls.mock_repeated_timer = mock_repeated_timer
@@ -21,6 +24,11 @@ class TestPluginConfiguration(unittest.TestCase):
         cls.plugin._logger = cls.logger
         # Nice way to test persisted data
         cls.plugin._data_folder = "test_data"
+
+    def test_initialize(self):
+        self.plugin.initialize()
+
+        assert len(self.plugin._persisted_data.get("persistence_uuid")) == Config.uuid_length
 
     def test_persisted_data(self):
         # State has already been set
@@ -36,11 +44,29 @@ class TestPluginConfiguration(unittest.TestCase):
         assert Config.persisted_data_file in data_path and "test_data" in data_path
         assert len(persistence_uuid) > 20
 
-    def test_startup_without_ping(self):
+    def test_startup_with_ping_worker(self):
         self.plugin._ping_worker = self.mock_repeated_timer
         self.plugin.on_after_startup()
 
-        self.logger.error.assert_called_with("'ping' config value not set. Aborting")
+        assert not self.logger.error.called
+
+    def test_startup_without_ping_setting(self):
+        self.plugin._ping_worker = None
+
+        self.plugin._settings.get_int = lambda *args: None
+
+        self.plugin.on_after_startup()
+
+        self.logger.error.assert_called_with(Errors.ping_setting_unset)
+
+    def test_startup_without_ping_worker(self):
+        self.plugin._ping_worker = None
+
+        self.plugin._start_periodic_check()
+
+        assert self.plugin._settings.get_int(["ping"]) == Config.default_ping_secs
+        assert Config.default_ping_secs == 120
+        assert self.plugin._ping_worker is not None
 
     def test_on_settings_cleanup(self):
         """Tests that after cleanup only minimal config is left in storage."""

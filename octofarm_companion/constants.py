@@ -4,7 +4,8 @@ class Errors:
     access_token_not_saved = "Conditional error: 'access_token' was not saved properly. Please report a bug to the " \
                              "plugin developers. Aborting "
     base_url_not_provided = "The 'base_url' was not provided. Preventing announcement query to OctoFarm"
-
+    openid_config_unset = "Error connecting to OctoFarm. 'oidc_client_id' or 'oidc_client_secret' not set"
+    ping_setting_unset = "'ping' config value not set. Aborting"
 
 class Keys:
     persistence_uuid_key = "persistence_uuid"
@@ -15,6 +16,9 @@ class Config:
     access_token_length = 43
     uuid_length = 36
     persisted_data_file = "backup_excluded_data.json"
+    default_octofarm_host = "http://127.0.0.1"
+    default_octofarm_port = 4000
+    default_ping_secs = 120
 
 
 class State:

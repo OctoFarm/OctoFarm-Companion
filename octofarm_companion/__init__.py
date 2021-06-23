@@ -48,9 +48,9 @@ class OctoFarmCompanionPlugin(
 
     def on_after_startup(self):
         if self._settings.get(["octofarm_host"]) is None:
-            self._settings.set(["octofarm_host"], "http://127.0.0.1")
+            self._settings.set(["octofarm_host"], Config.default_octofarm_host)
         if self._settings.get(["octofarm_port"]) is None:
-            self._settings.set(["octofarm_port"], 4000)
+            self._settings.set(["octofarm_port"], Config.default_octofarm_port)
         self._get_device_uuid()
         self._start_periodic_check()
 
@@ -81,7 +81,7 @@ class OctoFarmCompanionPlugin(
             "device_uuid": None,  # Auto-generated and unique
             "oidc_client_id": None,  # Without adjustment this config value is ALWAYS useless
             "oidc_client_secret": None,  # Without adjustment this config value is ALWAYS useless
-            "ping": 120
+            "ping": Config.default_ping_secs
         }
 
     def get_settings_version(self):
@@ -169,8 +169,8 @@ class OctoFarmCompanionPlugin(
                     ping_interval, self._check_octofarm, run_first=True
                 )
                 self._ping_worker.start()
-        else:
-            return self._logger.error("'ping' config value not set. Aborting")
+            else:
+                return self._logger.error(Errors.ping_setting_unset)
 
     def _check_octofarm(self):
         octofarm_host = self._settings.get(["octofarm_host"])
@@ -208,7 +208,7 @@ class OctoFarmCompanionPlugin(
             self._query_announcement(base_url, at)
 
         else:
-            self._logger.error("Error connecting to OctoFarm. 'oidc_client_id' or 'oidc_client_secret' not set")
+            self._logger.error(Errors.openid_config_unset)
             raise Exception("Configuration error: 'oidc_client_id' or 'oidc_client_secret' not set")
 
     def _query_access_token(self, base_url, oidc_client_id, oidc_client_secret):
