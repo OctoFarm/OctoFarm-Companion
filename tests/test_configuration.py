@@ -2,7 +2,7 @@ import unittest
 import unittest.mock as mock
 from datetime import datetime
 
-from octofarm_companion import OctoFarmCompanionPlugin
+from octofarm_companion import OctoFarmCompanionPlugin, __plugin_version__
 from octofarm_companion.constants import Config, Keys
 
 
@@ -128,6 +128,22 @@ class TestPluginConfiguration(unittest.TestCase):
         assert self.plugin._persisted_data["requested_at"] == int(datetime.utcnow().timestamp())
         assert self.plugin._persisted_data["token_type"] == "asd4"
         assert self.plugin._persisted_data["scope"] == "asd5"
+
+    def test_plugin_update_state(self):
+        """ Check the update state response """
+        self.plugin._plugin_version = __plugin_version__
+        update_state = self.plugin.get_update_information()
+
+        assert update_state["octofarm_companion"]["displayVersion"] == __plugin_version__
+        assert update_state["octofarm_companion"]["type"] == "github_release"
+        assert update_state["octofarm_companion"]["user"] == "octofarm"
+        assert update_state["octofarm_companion"]["repo"] == "OctoFarm-Companion"
+        assert update_state["octofarm_companion"]["current"] == __plugin_version__
+        assert "octofarm/OctoFarm-Companion" in update_state["octofarm_companion"]["pip"]
+
+    def test_plugin_version_compared_setup(self):
+        """ Make sure the installation version equals the plugin version """
+        assert __plugin_version__ == "0.1.0-rc1-build3"
 
     def assert_state(self, state):
         assert self.plugin._state is state
