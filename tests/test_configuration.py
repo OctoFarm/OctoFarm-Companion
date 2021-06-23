@@ -1,3 +1,4 @@
+import os
 import unittest
 import unittest.mock as mock
 
@@ -28,7 +29,7 @@ class TestPluginConfiguration(unittest.TestCase):
         # MagicMock is returned - not useful yet
         # assert len(device_uuid) > 15
         assert ".json" in Config.persisted_data_file
-        assert data_path == "test_data\\" + Config.persisted_data_file
+        assert os.path.normpath(data_path) == os.path.normpath("test_data\\" + Config.persisted_data_file)
         assert len(persistence_uuid) > 20
 
     def test_on_settings_cleanup(self):
