@@ -203,7 +203,7 @@ class OctoFarmCompanionPlugin(
                     self._state = State.CRASHED
                     return False
             else:
-                # TODO interesting choice
+                # We skip querying the token
                 self._state = State.SUCCESS
 
             if "access_token" not in self._persisted_data.keys():
