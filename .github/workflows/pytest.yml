@@ -23,7 +23,10 @@ jobs:
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
       - name: Test with pytest and pytest-cov
         run: |
-          pytest --cache-clear > pytest-coverage.txt
+          pytest --clear-cache --verbose --cov=octofarm_companion
+    - name: Build coverage file
+      run: |
+        pytest --cache-clear --cov=app test/ > pytest-coverage.txt          
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
