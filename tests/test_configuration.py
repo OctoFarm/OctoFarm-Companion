@@ -30,6 +30,11 @@ class TestPluginConfiguration(unittest.TestCase):
 
         assert len(self.plugin._persisted_data.get("persistence_uuid")) == Config.uuid_length
 
+    def test_excludes_hook(self):
+        excludes = self.plugin.additional_excludes_hook(None)
+        assert len(excludes) == 1
+        assert excludes[0] == Config.persisted_data_file
+
     def test_persisted_data(self):
         # State has already been set
         device_uuid = self.plugin._get_device_uuid()

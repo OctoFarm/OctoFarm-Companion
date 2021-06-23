@@ -9,7 +9,7 @@ from datetime import datetime
 from urllib.parse import urljoin
 
 import flask
-from flask import request
+from flask import request, abort
 import octoprint.plugin
 import requests
 from octoprint.util import RepeatedTimer
@@ -307,7 +307,7 @@ class OctoFarmCompanionPlugin(
     def test_octofarm_connection(self):
         input = json.loads(request.data)
         if "url" not in input:
-            flask.abort(400, description="Expected 'url' parameter")
+            return abort(400, description="Expected 'url' parameter")
 
         proposed_url = input["url"]
         self._logger.info("Testing OctoFarm URL " + proposed_url)

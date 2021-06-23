@@ -2,6 +2,9 @@ import json
 import unittest
 import unittest.mock as mock
 
+import pytest
+from werkzeug.exceptions import BadRequest
+
 from octofarm_companion import OctoFarmCompanionPlugin
 
 
@@ -40,6 +43,18 @@ class TestPluginConnection(unittest.TestCase):
             # somefile.method_called_from_route()
             response = self.plugin.test_octofarm_connection()
             assert response["version"] == "test-version"
+
+    @mock.patch('requests.get', side_effect=mocked_requests_get)
+    def test_octofarm_connection_test_validation(self, mocked_requests_get):
+        """Call the OctoFarm connection test properly"""
+
+        m = mock.MagicMock()
+        m.data = json.dumps({})
+
+        with mock.patch("octofarm_companion.request", m):
+            with pytest.raises(BadRequest) as e:
+                response = self.plugin.test_octofarm_connection()
+            assert str(e.value) == "400 Bad Request: Expected 'url' parameter"
 
     # TODO test_octofarm_connection
     # TODO test_octofarm_openid
