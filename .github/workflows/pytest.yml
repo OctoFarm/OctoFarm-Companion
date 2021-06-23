@@ -24,9 +24,9 @@ jobs:
       - name: Test with pytest and pytest-cov
         run: |
           pytest --clear-cache --verbose --cov=octofarm_companion
-    - name: Build coverage file
-      run: |
-        pytest --cache-clear --cov=app test/ > pytest-coverage.txt          
+      - name: Build coverage file
+        run: |
+          pytest --cache-clear --cov=octofarm_companion tests/ > pytest-coverage.txt          
       - name: Lint with flake8
         run: |
           # stop the build if there are Python syntax errors or undefined names
