@@ -14,7 +14,7 @@ class TestPluginConnection(unittest.TestCase):
         cls.plugin = OctoFarmCompanionPlugin()
         cls.plugin._settings = cls.settings
         cls.plugin._logger = cls.logger
-        cls.plugin._ping_worker = dict() # disable it
+        cls.plugin._ping_worker = dict()  # disable it
 
     # This method will be used by the mock to replace requests.get
     def mocked_requests_get(*args, **kwargs):

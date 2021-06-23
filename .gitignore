@@ -139,3 +139,5 @@ tests/test_data/backup_excluded_data.json
 test_data/backup_excluded_data.json
 
 pytest-coverage.txt
+
+test

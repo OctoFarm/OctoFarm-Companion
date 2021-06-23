@@ -11,6 +11,12 @@ def mock_settings_get(accessor):
     return None
 
 
+def mock_settings_global_get(accessor):
+    if accessor[0] == "server" and accessor[1] == "host":
+        return Config.default_octoprint_host
+    return None
+
+
 def mock_settings_get_int(accessor):
     if accessor[0] == "octofarm_port":
         return Config.default_octofarm_port

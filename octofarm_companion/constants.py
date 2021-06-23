@@ -17,6 +17,7 @@ class Config:
     uuid_length = 36
     persisted_data_file = "backup_excluded_data.json"
     default_octofarm_host = "http://127.0.0.1"
+    default_octoprint_host = "http://127.0.0.1"
     default_octofarm_port = 4000
     default_ping_secs = 120
 

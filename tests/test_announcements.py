@@ -7,6 +7,7 @@ import pytest
 
 from octofarm_companion import OctoFarmCompanionPlugin
 from octofarm_companion.constants import Errors, Config, State
+from tests.utils import mock_settings_get, mock_settings_global_get
 
 
 class TestPluginAnnouncing(unittest.TestCase):
@@ -17,6 +18,8 @@ class TestPluginAnnouncing(unittest.TestCase):
 
         cls.plugin = OctoFarmCompanionPlugin()
         cls.plugin._settings = cls.settings
+        cls.plugin._settings.get = mock_settings_get
+        cls.plugin._settings.get = mock_settings_global_get
         cls.plugin._logger = cls.logger
         # Nice way to test persisted data
         cls.plugin._data_folder = "test_data"
