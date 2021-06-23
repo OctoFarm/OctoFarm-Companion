@@ -1,3 +1,4 @@
+import json
 import unittest
 import unittest.mock as mock
 from random import choice
@@ -7,7 +8,7 @@ import pytest
 
 from octofarm_companion import OctoFarmCompanionPlugin
 from octofarm_companion.constants import Errors, Config, State
-from tests.utils import mock_settings_get, mock_settings_global_get
+from tests.utils import mock_settings_get, mock_settings_global_get, mock_settings_custom
 
 
 class TestPluginAnnouncing(unittest.TestCase):
@@ -22,6 +23,8 @@ class TestPluginAnnouncing(unittest.TestCase):
         cls.plugin._settings.get = mock_settings_global_get
         cls.plugin._write_persisted_data = lambda *args: None
         cls.plugin._logger = cls.logger
+        cls.plugin._logger.info = print
+        cls.plugin._logger.error = print
         # Nice way to test persisted data
         cls.plugin._data_folder = "test_data/announcements"
 
@@ -54,20 +57,14 @@ class TestPluginAnnouncing(unittest.TestCase):
     # This method will be used by the mock to replace requests.get
     def mocked_requests_post(*args, **kwargs):
         class MockResponse:
-            def __init__(self, json_data, status_code, text):
-                self.json_data = json_data
+            def __init__(self, status_code, text):
                 self.status_code = status_code
                 self.text = text
 
-            def json(self):
-                return self.json_data
-
-        if args[0] == 'http://someurl.com/test.json':
-            return MockResponse({"key1": "value1"}, 200, "{}")
-        elif args[0] == 'http://someotherurl.com/anothertest.json':
-            return MockResponse({"key2": "value2"}, 200, "{}")
-
-        return MockResponse(None, 404, "{}")
+        if "https://farm123asdasdasdasd.net:443" in args[0]:
+            fake_token = ''.join(choice(ascii_uppercase) for i in range(Config.access_token_length))
+            return MockResponse(200, json.dumps({"access_token": fake_token, "expires_in": 100}))
+        return MockResponse(404, "{}")
 
     @mock.patch('requests.post', side_effect=mocked_requests_post)
     def test_announcement_with_proper_data(self, mock_post):
@@ -83,6 +80,31 @@ class TestPluginAnnouncing(unittest.TestCase):
         # assert e.value.args[0] == Errors.base_url_not_provided
         self.assert_state(State.SLEEP)
 
+    def test_check_octofarm(self):
+        with pytest.raises(Exception) as e:
+            self.plugin._check_octofarm()
+
+        assert e.value.args[0] == Errors.config_openid_missing
+        self.assert_state(State.CRASHED)
+
+    def test_check_octofarm_unreachable_settings(self):
+        self.plugin._settings.get = mock_settings_custom
+        self.assert_state(State.BOOT)
+
+        self.plugin._check_octofarm()
+
+        # TODO We are crashed with a connection error being caught. Save the reason
+        self.assert_state(State.CRASHED)
+
+    @mock.patch('requests.post', side_effect=mocked_requests_post)
+    def test_check_octofarm_reachable_settings(self, mock_request):
+        self.plugin._settings.get = mock_settings_custom
+        self.assert_state(State.BOOT)
+
+        self.plugin._check_octofarm()
+
+        # TODO We are crashed with a connection error being caught. Save the reason
+        self.assert_state(State.SLEEP)
 
     # TODO _check_octofarm
     # TODO _query_access_token

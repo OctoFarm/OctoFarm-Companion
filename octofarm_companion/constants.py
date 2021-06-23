@@ -5,6 +5,7 @@ class Errors:
                              "plugin developers. Aborting "
     base_url_not_provided = "The 'base_url' was not provided. Preventing announcement query to OctoFarm"
     openid_config_unset = "Error connecting to OctoFarm. 'oidc_client_id' or 'oidc_client_secret' not set"
+    config_openid_missing = "Configuration error: 'oidc_client_id' or 'oidc_client_secret' not set"
     ping_setting_unset = "'ping' config value not set. Aborting"
 
 class Keys:

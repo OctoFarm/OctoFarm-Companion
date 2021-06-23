@@ -199,8 +199,10 @@ class OctoFarmCompanionPlugin(
                 oidc_client_secret = self._settings.get(["oidc_client_secret"])
                 success = self._query_access_token(base_url, oidc_client_id, oidc_client_secret)
                 if not success:
+                    self._state = State.CRASHED
                     return False
             else:
+                # TODO interesting choice
                 self._state = State.SUCCESS
 
             if "access_token" not in self._persisted_data.keys():
@@ -212,7 +214,8 @@ class OctoFarmCompanionPlugin(
 
         else:
             self._logger.error(Errors.openid_config_unset)
-            raise Exception("Configuration error: 'oidc_client_id' or 'oidc_client_secret' not set")
+            self._state = State.CRASHED
+            raise Exception(Errors.config_openid_missing)
 
     def _query_access_token(self, base_url, oidc_client_id, oidc_client_secret):
         if not oidc_client_id or not oidc_client_secret:

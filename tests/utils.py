@@ -7,7 +7,21 @@ def mock_settings_get(accessor):
     if accessor[0] == "octofarm_port":
         return Config.default_octofarm_port
     if accessor[0] == "ping":
-        return Config.default_octofarm_port
+        return Config.default_ping_secs
+    return None
+
+
+def mock_settings_custom(accessor):
+    if accessor[0] == "octofarm_host":
+        return "https://farm123asdasdasdasd.net"
+    if accessor[0] == "octofarm_port":
+        return 443
+    if accessor[0] == "ping":
+        return 300
+    if accessor[0] == "oidc_client_id":
+        return "ValidAnnoyer123"
+    if accessor[0] == "oidc_client_secret":
+        return "ValidPawo321"
     return None
 
 
