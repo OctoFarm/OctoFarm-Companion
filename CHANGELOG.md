@@ -2,12 +2,24 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.0-rc1-build3]
+
+### Added
+    - Test configuration and announcing with coverage up to 92%.
+
+### Changed
+
+### Removed
+
+### Fixed
+    - Abstracted state variable and accessor keys
+
 
 ## [0.1.0-rc1-build2]
 
 ### Added
- 
-### Changed 
+
+### Changed
 
 ### Removed
 
