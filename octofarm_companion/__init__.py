@@ -171,6 +171,8 @@ class OctoFarmCompanionPlugin(
                     ping_interval, self._check_octofarm, run_first=True
                 )
                 self._ping_worker.start()
+        else:
+            return self._logger.error("'ping' config value not set. Aborting")
 
     def _check_octofarm(self):
         octofarm_host = self._settings.get(["octofarm_host"])

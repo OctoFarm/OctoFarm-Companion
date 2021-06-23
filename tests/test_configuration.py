@@ -1,15 +1,21 @@
 import unittest
 import unittest.mock as mock
 
+from octoprint.util import RepeatedTimer
+
 from octofarm_companion import OctoFarmCompanionPlugin
 from octofarm_companion.constants import Config, Keys
 
 
 class TestPluginConfiguration(unittest.TestCase):
     @classmethod
-    def setUp(cls):
+    @mock.patch('octofarm_companion.RepeatedTimer')
+    def setUp(cls, mock_repeated_timer):
         cls.settings = mock.MagicMock()  # Replace or refine with set/get
         cls.logger = mock.MagicMock()
+
+        cls.mock_repeated_timer = mock_repeated_timer
+        cls.mock_repeated_timer .start = lambda *args: None
 
         cls.plugin = OctoFarmCompanionPlugin()
         cls.plugin._settings = cls.settings
@@ -30,6 +36,13 @@ class TestPluginConfiguration(unittest.TestCase):
         assert ".json" in Config.persisted_data_file
         assert Config.persisted_data_file in data_path and "test_data" in data_path
         assert len(persistence_uuid) > 20
+
+    def test_startup(self):
+        self.plugin.on_after_startup()
+
+        assert isinstance(self.plugin._ping_worker, RepeatedTimer)
+
+        assert self.mock_repeated_timer.assert_called_with()
 
     def test_on_settings_cleanup(self):
         """Tests that after cleanup only minimal config is left in storage."""

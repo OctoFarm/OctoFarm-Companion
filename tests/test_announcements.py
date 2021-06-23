@@ -8,7 +8,6 @@ import pytest
 from octofarm_companion import OctoFarmCompanionPlugin
 from octofarm_companion.constants import Errors, Config, State
 
-
 class TestPluginAnnouncing(unittest.TestCase):
     @classmethod
     def setUp(cls):
