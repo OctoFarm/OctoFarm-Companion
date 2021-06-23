@@ -79,6 +79,25 @@ class TestPluginConfiguration(unittest.TestCase):
         }
         self.settings.set.assert_called_once_with([], expected)
 
+    def test_settings_default(self):
+        defaults = self.plugin.get_settings_defaults()
+        assert defaults["octofarm_host"] is None
+        assert defaults["octofarm_port"] is None
+        assert defaults["oidc_client_id"] is None
+        assert defaults["oidc_client_secret"] is None
+        assert defaults["ping"] is 120
+
+    def test_template_vars(self):
+        template_vars_dict = self.plugin.get_template_vars()
+        assert "url" in template_vars_dict.keys()
+        assert "of_favicon" in template_vars_dict.keys()
+
+    def test_template_configs(self):
+        template_config = self.plugin.get_template_configs()
+
+        assert any(config["type"] == "settings" for config in template_config)
+        assert any(config["type"] == "navbar" for config in template_config)
+
     def assert_state(self, state):
         assert self.plugin._state is state
 
