@@ -1,7 +1,6 @@
 import unittest
 import unittest.mock as mock
-
-from octoprint.util import RepeatedTimer
+from datetime import datetime
 
 from octofarm_companion import OctoFarmCompanionPlugin
 from octofarm_companion.constants import Config, Keys
@@ -15,7 +14,7 @@ class TestPluginConfiguration(unittest.TestCase):
         cls.logger = mock.MagicMock()
 
         cls.mock_repeated_timer = mock_repeated_timer
-        cls.mock_repeated_timer .start = lambda *args: None
+        cls.mock_repeated_timer.start = lambda *args: None
 
         cls.plugin = OctoFarmCompanionPlugin()
         cls.plugin._settings = cls.settings
@@ -97,6 +96,38 @@ class TestPluginConfiguration(unittest.TestCase):
 
         assert any(config["type"] == "settings" for config in template_config)
         assert any(config["type"] == "navbar" for config in template_config)
+
+    def test_get_assets(self):
+        assets_dict = self.plugin.get_assets()
+        assert "js" in assets_dict
+        assert "css" in assets_dict
+        assert "less" in assets_dict
+
+        assert assets_dict["js"][0] == "js/octofarm_companion.js"
+
+    def test_get_settings_version(self):
+        assert self.plugin.get_settings_version() == 1
+
+    def test_write_new_device_uuid(self):
+        self.plugin._write_new_device_uuid("test")
+        assert len(self.plugin._persisted_data[Keys.persistence_uuid_key]) == Config.uuid_length
+
+    @mock.patch('octofarm_companion.OctoFarmCompanionPlugin._write_persisted_data')
+    def test_write_new_access_token(self, mocked):
+        new_data = dict(
+            access_token="asd1",
+            expires_in="asd2",
+            requested_at="dad3",
+            token_type="asd4",
+            scope="asd5"
+        )
+        self.plugin._write_new_access_token("paaath", new_data)
+
+        assert self.plugin._persisted_data["access_token"] == "asd1"
+        assert self.plugin._persisted_data["expires_in"] == "asd2"
+        assert self.plugin._persisted_data["requested_at"] == int(datetime.utcnow().timestamp())
+        assert self.plugin._persisted_data["token_type"] == "asd4"
+        assert self.plugin._persisted_data["scope"] == "asd5"
 
     def assert_state(self, state):
         assert self.plugin._state is state

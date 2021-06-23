@@ -13,6 +13,7 @@ class Keys:
 
 class Config:
     access_token_length = 43
+    uuid_length = 36
     persisted_data_file = "backup_excluded_data.json"
 
 
