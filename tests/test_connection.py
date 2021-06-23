@@ -108,7 +108,7 @@ class TestPluginConnection(unittest.TestCase):
 
     @mock.patch('requests.post', side_effect=mocked_openid_response_notfound)
     def test_octofarm_openid_bug_response(self, mocked_requests_get):
-        """Call the OctoFarm OpenID connection test properly"""
+        """Call the OctoFarm OpenID connection test with a not found error"""
 
         m = mock.MagicMock()
         m.data = json.dumps({"url": "http://127.0.0.1", "client_id": "asd", "client_secret": "ok"})
@@ -139,7 +139,7 @@ class TestPluginConnection(unittest.TestCase):
 
     @mock.patch('requests.post', side_effect=mocked_openid_response_maximal)
     def test_octofarm_openid_success_maximal(self, mocked_requests_get):
-        """Call the OctoFarm OpenID connection test properly"""
+        """Call the OctoFarm OpenID connection test properly with maximum property set"""
 
         m = mock.MagicMock()
         m.data = json.dumps({"url": "http://127.0.0.1", "client_id": "asd", "client_secret": "ok"})
@@ -150,7 +150,8 @@ class TestPluginConnection(unittest.TestCase):
 
     @mock.patch('requests.post', side_effect=mocked_openid_response_minimal)
     def test_octofarm_openid_success_minimal(self, mocked_requests_get):
-        """Call the OctoFarm OpenID connection test properly with missing response properties 'scope' and 'token_type'"""
+        """Call the OctoFarm OpenID connection test properly with missing response properties 'scope' and
+        'token_type' """
 
         m = mock.MagicMock()
         m.data = json.dumps({"url": "http://127.0.0.1", "client_id": "asd", "client_secret": "ok"})

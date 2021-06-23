@@ -44,8 +44,6 @@ class TestPluginConfiguration(unittest.TestCase):
         persistence_uuid = self.plugin._persisted_data[Keys.persistence_uuid_key]
 
         assert device_uuid is not None
-        # MagicMock is returned - not useful yet
-        # assert len(device_uuid) > 15
         assert ".json" in Config.persisted_data_file
         assert Config.persisted_data_file in data_path and "test_data" in data_path
         assert len(persistence_uuid) > 20
@@ -179,14 +177,3 @@ class TestPluginConfiguration(unittest.TestCase):
 
     def assert_state(self, state):
         assert self.plugin._state is state
-
-    # TODO assert __init__
-    # TODO __plugin_load__ and version
-    # TODO get_update_information
-    # TODO get_excluded_persistence_datapath path
-    # TODO data/config mocked initialize
-    # TODO _write_persisted_data
-    # TODO additional_excludes_hook
-
-    # Optional
-    # TODO _start_periodic_check
