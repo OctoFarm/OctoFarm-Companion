@@ -37,12 +37,11 @@ class TestPluginConfiguration(unittest.TestCase):
         assert Config.persisted_data_file in data_path and "test_data" in data_path
         assert len(persistence_uuid) > 20
 
-    def test_startup(self):
+    def test_startup_without_ping(self):
+        self.plugin._ping_worker = self.mock_repeated_timer
         self.plugin.on_after_startup()
 
-        assert isinstance(self.plugin._ping_worker, RepeatedTimer)
-
-        assert self.mock_repeated_timer.assert_called_with()
+        self.logger.error.assert_called_with("'ping' config value not set. Aborting")
 
     def test_on_settings_cleanup(self):
         """Tests that after cleanup only minimal config is left in storage."""
