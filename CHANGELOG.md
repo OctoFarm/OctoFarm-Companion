@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [0.1.0-rc1-build3]
 
 ### Added
-    - Test configuration and announcing with coverage up to 44%.
+    - Test configuration and announcing with coverage up to 92%.
 
 ### Changed
 
