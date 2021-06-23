@@ -1,3 +1,4 @@
+import datetime
 import json
 import unittest
 import unittest.mock as mock
@@ -8,7 +9,7 @@ import pytest
 
 from octofarm_companion import OctoFarmCompanionPlugin
 from octofarm_companion.constants import Errors, Config, State
-from tests.utils import mock_settings_get, mock_settings_global_get, mock_settings_custom
+from tests.utils import mock_settings_get, mock_settings_global_get, mock_settings_custom, create_fake_at
 
 
 class TestPluginAnnouncing(unittest.TestCase):
@@ -45,7 +46,7 @@ class TestPluginAnnouncing(unittest.TestCase):
     def test_announcement_without_baseurl(self):
         """Call the query announcement, make sure it doesnt crash"""
 
-        fake_token = ''.join(choice(ascii_uppercase) for i in range(Config.access_token_length))
+        fake_token = create_fake_at()
         self.assert_state(State.BOOT)
 
         with pytest.raises(Exception) as e:
@@ -62,7 +63,7 @@ class TestPluginAnnouncing(unittest.TestCase):
                 self.text = text
 
         if "https://farm123asdasdasdasd.net:443" in args[0]:
-            fake_token = ''.join(choice(ascii_uppercase) for i in range(Config.access_token_length))
+            fake_token = create_fake_at()
             return MockResponse(200, json.dumps({"access_token": fake_token, "expires_in": 100}))
         return MockResponse(404, "{}")
 
@@ -70,7 +71,7 @@ class TestPluginAnnouncing(unittest.TestCase):
     def test_announcement_with_proper_data(self, mock_post):
         """Call the query announcement properly"""
 
-        fake_token = ''.join(choice(ascii_uppercase) for i in range(Config.access_token_length))
+        fake_token = create_fake_at()
         url = "testwrong_url"
         self.assert_state(State.BOOT)
 
@@ -102,9 +103,26 @@ class TestPluginAnnouncing(unittest.TestCase):
         self.assert_state(State.BOOT)
 
         self.plugin._check_octofarm()
-
-        # TODO We are crashed with a connection error being caught. Save the reason
         self.assert_state(State.SLEEP)
 
-    # TODO _check_octofarm
-    # TODO _query_access_token
+    @mock.patch('requests.post', side_effect=mocked_requests_post)
+    def test_check_octofarm_reachable_settings_expired(self, mock_request):
+        self.plugin._settings.get = mock_settings_custom
+        self.plugin._persisted_data["requested_at"] = datetime.datetime.utcnow().timestamp()
+        self.plugin._persisted_data["expires"] = -100
+        self.assert_state(State.BOOT)
+
+        self.plugin._check_octofarm()
+
+        self.assert_state(State.SLEEP)
+
+    @mock.patch('requests.post', side_effect=mocked_requests_post)
+    def test_check_octofarm_reachable_settings_unexpired(self, mock_request):
+        self.plugin._settings.get = mock_settings_custom
+        self.plugin._persisted_data["requested_at"] = datetime.datetime.utcnow().timestamp()
+        self.plugin._persisted_data["expires"] = 10000000
+        self.plugin._persisted_data["access_token"] = create_fake_at()
+
+        self.assert_state(State.BOOT)
+        self.plugin._check_octofarm() # We skip querying the access_token
+        self.assert_state(State.SLEEP)

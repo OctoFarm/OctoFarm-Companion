@@ -182,9 +182,9 @@ class OctoFarmCompanionPlugin(
             base_url = f"{octofarm_host}:{octofarm_port}"
 
             # OIDC client_credentials flow result
-            access_token = self._persisted_data.get('access_token', None)
-            requested_at = self._persisted_data.get('requested_at', None)
-            expires = self._persisted_data.get('expires', None)
+            access_token = self._persisted_data.get("access_token", None)
+            requested_at = self._persisted_data.get("requested_at", None)
+            expires = self._persisted_data.get("expires", None)
 
             # Token expiry check - prone to time desync
             is_expired = None
@@ -197,6 +197,7 @@ class OctoFarmCompanionPlugin(
             if token_invalid:
                 oidc_client_id = self._settings.get(["oidc_client_id"])
                 oidc_client_secret = self._settings.get(["oidc_client_secret"])
+                self._logger.info("Refreshing access_token as it was expired")
                 success = self._query_access_token(base_url, oidc_client_id, oidc_client_secret)
                 if not success:
                     self._state = State.CRASHED
@@ -206,6 +207,7 @@ class OctoFarmCompanionPlugin(
                 self._state = State.SUCCESS
 
             if "access_token" not in self._persisted_data.keys():
+                # Quite unlikely as we'd be crashed
                 raise Exception(Errors.access_token_not_saved)
 
             at = self._persisted_data["access_token"]
