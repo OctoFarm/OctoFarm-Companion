@@ -9,11 +9,9 @@ from datetime import datetime
 from urllib.parse import urljoin
 
 import flask
+from flask import request
 import octoprint.plugin
 import requests
-from octoprint.server.util.flask import (
-    no_firstrun_access
-)
 from octoprint.util import RepeatedTimer
 
 from octofarm_companion.constants import Errors, State, Config, Keys
@@ -210,8 +208,8 @@ class OctoFarmCompanionPlugin(
             self._query_announcement(base_url, at)
 
         else:
+            self._logger.error("Error connecting to OctoFarm. 'oidc_client_id' or 'oidc_client_secret' not set")
             raise Exception("Configuration error: 'oidc_client_id' or 'oidc_client_secret' not set")
-            self._logger.error("Error connecting to OctoFarm")
 
     def _query_access_token(self, base_url, oidc_client_id, oidc_client_secret):
         if not oidc_client_id or not oidc_client_secret:
@@ -306,9 +304,8 @@ class OctoFarmCompanionPlugin(
         return [Config.persisted_data_file]
 
     @octoprint.plugin.BlueprintPlugin.route("/test_octofarm_connection", methods=["POST"])
-    @no_firstrun_access
     def test_octofarm_connection(self):
-        input = json.loads(flask.request.data)
+        input = json.loads(request.data)
         if "url" not in input:
             flask.abort(400, description="Expected 'url' parameter")
 
@@ -324,7 +321,6 @@ class OctoFarmCompanionPlugin(
         return version_data
 
     @octoprint.plugin.BlueprintPlugin.route("/test_octofarm_openid", methods=["POST"])
-    @no_firstrun_access
     def test_octofarm_openid(self):
         input = json.loads(flask.request.data)
         if not "url" in input:

@@ -8,6 +8,7 @@ import pytest
 from octofarm_companion import OctoFarmCompanionPlugin
 from octofarm_companion.constants import Errors, Config, State
 
+
 class TestPluginAnnouncing(unittest.TestCase):
     @classmethod
     def setUp(cls):
@@ -47,7 +48,7 @@ class TestPluginAnnouncing(unittest.TestCase):
         self.assert_state(State.CRASHED)
 
     # This method will be used by the mock to replace requests.get
-    def mocked_requests_get(*args, **kwargs):
+    def mocked_requests_post(*args, **kwargs):
         class MockResponse:
             def __init__(self, json_data, status_code, text):
                 self.json_data = json_data
@@ -64,7 +65,7 @@ class TestPluginAnnouncing(unittest.TestCase):
 
         return MockResponse(None, 404, "{}")
 
-    @mock.patch('requests.post', side_effect=mocked_requests_get)
+    @mock.patch('requests.post', side_effect=mocked_requests_post)
     def test_announcement_with_proper_data(self, mock_post):
         """Call the query announcement properly"""
 
@@ -80,6 +81,3 @@ class TestPluginAnnouncing(unittest.TestCase):
 
     # TODO _check_octofarm
     # TODO _query_access_token
-    # TODO test_octofarm_connection
-    # TODO test_octofarm_openid
-

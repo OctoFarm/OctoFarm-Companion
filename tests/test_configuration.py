@@ -136,14 +136,8 @@ class TestPluginConfiguration(unittest.TestCase):
     # TODO __plugin_load__ and version
     # TODO get_update_information
     # TODO get_excluded_persistence_datapath path
-    # TODO get_settings_defaults
     # TODO data/config mocked initialize
-    # TODO _fetch_persisted_data
-    # TODO _write_new_access_token
-    # TODO _write_new_device_uuid
     # TODO _write_persisted_data
-    # TODO get_template_vars
-    # TODO _get_device_uuid
     # TODO additional_excludes_hook
 
     # Optional
