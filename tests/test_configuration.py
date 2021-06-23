@@ -85,7 +85,7 @@ class TestPluginConfiguration(unittest.TestCase):
         assert defaults["octofarm_port"] is None
         assert defaults["oidc_client_id"] is None
         assert defaults["oidc_client_secret"] is None
-        assert defaults["ping"] is 120
+        assert defaults["ping"] == 120
 
     def test_template_vars(self):
         template_vars_dict = self.plugin.get_template_vars()
