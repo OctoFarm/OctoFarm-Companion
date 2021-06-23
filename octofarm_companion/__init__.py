@@ -9,9 +9,9 @@ from datetime import datetime
 from urllib.parse import urljoin
 
 import flask
-from flask import request, abort
 import octoprint.plugin
 import requests
+from flask import request
 from octoprint.util import RepeatedTimer
 
 from octofarm_companion.constants import Errors, State, Config, Keys
@@ -118,8 +118,10 @@ class OctoFarmCompanionPlugin(
         self._persisted_data["access_token"] = at_data["access_token"]
         self._persisted_data["expires_in"] = at_data["expires_in"]
         self._persisted_data["requested_at"] = int(datetime.utcnow().timestamp())
-        self._persisted_data["token_type"] = at_data["token_type"]
-        self._persisted_data["scope"] = at_data["scope"]
+        if "token_type" in at_data.keys():
+            self._persisted_data["token_type"] = at_data["token_type"]
+        if "scope" in at_data.keys():
+            self._persisted_data["scope"] = at_data["scope"]
         self._write_persisted_data(filepath)
         self._logger.info("OctoFarm persisted data file was updated (access_token)")
 
@@ -201,9 +203,10 @@ class OctoFarmCompanionPlugin(
             else:
                 self._state = State.SUCCESS
 
-            at = self._persisted_data["access_token"]
-            if at is None:
+            if "access_token" not in self._persisted_data.keys():
                 raise Exception(Errors.access_token_not_saved)
+
+            at = self._persisted_data["access_token"]
 
             self._query_announcement(base_url, at)
 
@@ -236,10 +239,10 @@ class OctoFarmCompanionPlugin(
                 "Generic Exception: error requesting access_token request to OctoFarm. Exception: " + str(e))
 
         if at_data is not None:
-            if at_data["access_token"] is None:
+            if "access_token" not in at_data.keys():
                 raise Exception(
                     "Response error: 'access_token' not received. Check your OctoFarm server logs. Aborting")
-            if at_data["expires_in"] is None:
+            if "expires_in" not in at_data.keys() is None:
                 raise Exception("Response error: 'expires_in' not received. Check your OctoFarm server logs. Aborting")
 
             # Saves to file and to this plugin instance self._persistence_data accordingly
@@ -292,12 +295,15 @@ class OctoFarmCompanionPlugin(
             url = urljoin(base_url, octofarm_announce_route)
             response = requests.post(url, headers=headers, json=check_data)
 
-            self._state = "sleep"
+            self._state = State.SLEEP
             self._logger.info(f"Done announcing to OctoFarm server ({response.status_code})")
             self._logger.info(response.text)
         except requests.exceptions.ConnectionError:
-            self._state = "crash"
+            self._state = State.CRASHED
             self._logger.error("ConnectionError: error sending announcement to OctoFarm")
+
+    def _call_validator_abort(self, key):
+        flask.abort(400, description=f"Expected '{key}' parameter")
 
     @staticmethod
     def additional_excludes_hook(excludes, *args, **kwargs):
@@ -306,8 +312,10 @@ class OctoFarmCompanionPlugin(
     @octoprint.plugin.BlueprintPlugin.route("/test_octofarm_connection", methods=["POST"])
     def test_octofarm_connection(self):
         input = json.loads(request.data)
-        if "url" not in input:
-            return abort(400, description="Expected 'url' parameter")
+        keys = ["url"]
+        for key in keys:
+            if key not in input:
+                return self._call_validator_abort(key)
 
         proposed_url = input["url"]
         self._logger.info("Testing OctoFarm URL " + proposed_url)
@@ -322,18 +330,16 @@ class OctoFarmCompanionPlugin(
 
     @octoprint.plugin.BlueprintPlugin.route("/test_octofarm_openid", methods=["POST"])
     def test_octofarm_openid(self):
-        input = json.loads(flask.request.data)
-        if not "url" in input:
-            flask.abort(400, description="Expected 'url' parameter")
-        if not "client_id" in input:
-            flask.abort(400, description="Expected 'client_id' parameter")
-        if not "client_secret" in input:
-            flask.abort(400, description="Expected 'client_secret' parameter")
+        input = json.loads(request.data)
+        keys = ["url", "client_id", "client_secret"]
+        for key in keys:
+            if key not in input:
+                return self._call_validator_abort(key)
 
         proposed_url = input["url"]
         oidc_client_id = input["client_id"]
         oidc_client_secret = input["client_secret"]
-        self._query_access_token(proposed_url, oidc_client_id, oidc_client_secret)
+        response = self._query_access_token(proposed_url, oidc_client_id, oidc_client_secret)
 
         self._logger.info("Queried access_token from Octofarm")
 

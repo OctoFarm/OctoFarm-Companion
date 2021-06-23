@@ -21,9 +21,10 @@ class TestPluginConfiguration(unittest.TestCase):
 
         cls.plugin = OctoFarmCompanionPlugin()
         cls.plugin._settings = cls.settings
+        cls.plugin._write_persisted_data = lambda *args: None
         cls.plugin._logger = cls.logger
         # Nice way to test persisted data
-        cls.plugin._data_folder = "test_data"
+        cls.plugin._data_folder = "test_data/configuration"
 
     def test_initialize(self):
         self.plugin.initialize()

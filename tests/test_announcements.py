@@ -20,9 +20,10 @@ class TestPluginAnnouncing(unittest.TestCase):
         cls.plugin._settings = cls.settings
         cls.plugin._settings.get = mock_settings_get
         cls.plugin._settings.get = mock_settings_global_get
+        cls.plugin._write_persisted_data = lambda *args: None
         cls.plugin._logger = cls.logger
         # Nice way to test persisted data
-        cls.plugin._data_folder = "test_data"
+        cls.plugin._data_folder = "test_data/announcements"
 
     def assert_state(self, state):
         assert self.plugin._state is state
@@ -81,6 +82,7 @@ class TestPluginAnnouncing(unittest.TestCase):
 
         # assert e.value.args[0] == Errors.base_url_not_provided
         self.assert_state(State.SLEEP)
+
 
     # TODO _check_octofarm
     # TODO _query_access_token

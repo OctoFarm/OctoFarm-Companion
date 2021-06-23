@@ -5,7 +5,7 @@ import unittest.mock as mock
 import pytest
 from werkzeug.exceptions import BadRequest
 
-from octofarm_companion import OctoFarmCompanionPlugin
+from octofarm_companion import OctoFarmCompanionPlugin, State
 
 
 class TestPluginConnection(unittest.TestCase):
@@ -17,7 +17,14 @@ class TestPluginConnection(unittest.TestCase):
         cls.plugin = OctoFarmCompanionPlugin()
         cls.plugin._settings = cls.settings
         cls.plugin._logger = cls.logger
+        cls.plugin._logger.info = print
+        cls.plugin._logger.error = print
         cls.plugin._ping_worker = dict()  # disable it
+        cls.plugin._data_folder = "test_data/connection"
+        cls.plugin._write_persisted_data = lambda *args: None
+
+    def assert_state(self, state):
+        assert self.plugin._state is state
 
     # This method will be used by the mock to replace requests.get
     def mocked_requests_get(*args, **kwargs):
@@ -44,17 +51,110 @@ class TestPluginConnection(unittest.TestCase):
             response = self.plugin.test_octofarm_connection()
             assert response["version"] == "test-version"
 
+    def _assert_bad_request_parameter(self, exception_info, param):
+        assert str(exception_info.value) == f"400 Bad Request: Expected '{param}' parameter"
+
     @mock.patch('requests.get', side_effect=mocked_requests_get)
     def test_octofarm_connection_test_validation(self, mocked_requests_get):
-        """Call the OctoFarm connection test properly"""
+        """Call the OctoFarm connection test with faulty input"""
 
         m = mock.MagicMock()
         m.data = json.dumps({})
-
         with mock.patch("octofarm_companion.request", m):
             with pytest.raises(BadRequest) as e:
-                response = self.plugin.test_octofarm_connection()
-            assert str(e.value) == "400 Bad Request: Expected 'url' parameter"
+                self.plugin.test_octofarm_connection()
+            self._assert_bad_request_parameter(e, "url")
 
-    # TODO test_octofarm_connection
-    # TODO test_octofarm_openid
+    @mock.patch('requests.post', side_effect=mocked_requests_get)
+    def test_octofarm_openid_validation(self, mocked_requests_get):
+        """Call the OctoFarm OpenID connection test with faulty input"""
+
+        m = mock.MagicMock()
+        m.data = json.dumps({})
+        with mock.patch("octofarm_companion.request", m):
+            with pytest.raises(BadRequest) as e:
+                self.plugin.test_octofarm_openid()
+            self._assert_bad_request_parameter(e, "url")
+
+        m = mock.MagicMock()
+        m.data = json.dumps({"url": "http://127.0.0.1"})
+        with mock.patch("octofarm_companion.request", m):
+            with pytest.raises(BadRequest) as e:
+                self.plugin.test_octofarm_openid()
+            self._assert_bad_request_parameter(e, "client_id")
+
+        m = mock.MagicMock()
+        m.data = json.dumps({"url": "http://127.0.0.1", "client_secret": "asd"})
+        with mock.patch("octofarm_companion.request", m):
+            with pytest.raises(BadRequest) as e:
+                self.plugin.test_octofarm_openid()
+            self._assert_bad_request_parameter(e, "client_id")
+
+        m = mock.MagicMock()
+        m.data = json.dumps({"url": "http://127.0.0.1", "client_id": "asd"})
+        with mock.patch("octofarm_companion.request", m):
+            with pytest.raises(BadRequest) as e:
+                self.plugin.test_octofarm_openid()
+            self._assert_bad_request_parameter(e, "client_secret")
+
+    # This method will be used by the mock to replace requests.get
+    def mocked_openid_response_notfound(*args, **kwargs):
+        class MockResponse:
+            def __init__(self, status_code, text):
+                self.status_code = status_code
+                self.text = text
+
+        return MockResponse({}, 404)
+
+    @mock.patch('requests.post', side_effect=mocked_openid_response_notfound)
+    def test_octofarm_openid_bug_response(self, mocked_requests_get):
+        """Call the OctoFarm OpenID connection test properly"""
+
+        m = mock.MagicMock()
+        m.data = json.dumps({"url": "http://127.0.0.1", "client_id": "asd", "client_secret": "ok"})
+        with mock.patch("octofarm_companion.request", m):
+            self.assert_state(State.BOOT)
+            self.plugin.test_octofarm_openid()
+            self.assert_state(State.CRASHED)
+
+    # This method will be used by the mock to replace requests.get or requests.post
+    def mocked_openid_response_maximal(*args, **kwargs):
+        class MockResponse:
+            def __init__(self, status_code, text):
+                self.status_code = status_code
+                self.text = text
+
+        return MockResponse(200, json.dumps({"access_token": "test-token", "expires_in": 600, "token_type": "Bearer",
+                                             "scope": "openid profile email pincode bank_id"}))
+
+    # This method will be used by the mock to replace requests.get or requests.post
+    def mocked_openid_response_minimal(*args, **kwargs):
+        class MockResponse:
+            def __init__(self, status_code, text):
+                self.status_code = status_code
+                self.text = text
+
+        return MockResponse(200,
+                            json.dumps({"access_token": "test-token", "expires_in": 600}))
+
+    @mock.patch('requests.post', side_effect=mocked_openid_response_maximal)
+    def test_octofarm_openid_success_maximal(self, mocked_requests_get):
+        """Call the OctoFarm OpenID connection test properly"""
+
+        m = mock.MagicMock()
+        m.data = json.dumps({"url": "http://127.0.0.1", "client_id": "asd", "client_secret": "ok"})
+        with mock.patch("octofarm_companion.request", m):
+            self.assert_state(State.BOOT)
+            self.plugin.test_octofarm_openid()
+            self.assert_state(State.SUCCESS)
+
+    @mock.patch('requests.post', side_effect=mocked_openid_response_minimal)
+    def test_octofarm_openid_success_minimal(self, mocked_requests_get):
+        """Call the OctoFarm OpenID connection test properly with missing response properties 'scope' and 'token_type'"""
+
+        m = mock.MagicMock()
+        m.data = json.dumps({"url": "http://127.0.0.1", "client_id": "asd", "client_secret": "ok"})
+        with mock.patch("octofarm_companion.request", m):
+            self.assert_state(State.BOOT)
+            self.plugin.test_octofarm_openid()
+            self.assert_state(State.SUCCESS)
